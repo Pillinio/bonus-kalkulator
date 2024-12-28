@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Bonus-Kalkulator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .card {
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px;
+        }
+        .input-container {
+            margin: 15px 0;
+        }
+        .number-input {
+            width: 200px;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        input[type="range"] {
+            width: 400px;
+        }
+        .kpi-value {
+            display: inline-block;
+            margin-left: 10px;
+            min-width: 30px;
+        }
+        .results {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .text-right {
+            text-align: right;
+        }
+        .bold {
+            font-weight: bold;
+        }
+        .divider {
+            border-top: 1px solid #ccc;
+            margin: 10px 0;
+        }
+        .red {
+            color: #dc2626;
+        }
+        .green {
+            color: #059669;
+        }
+        .info-box {
+            background-color: #e5f6fd;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Bonus-Kalkulator</h2>
+        
+        <div class="input-container">
+            <label>Bonusjahr:</label><br>
+            <input type="number" id="bonusYear" class="number-input" value="2025" min="2025">
+            <div class="info-box">
+                Verzögerte Auszahlung im Jahr: <span id="payoutYear">2028</span>
+            </div>
+        </div>
+
+        <div class="input-container">
+            <label>Jahresgewinn (NAD):</label><br>
+            <input type="text" id="yearlyProfit" class="number-input" value="2.000.000" 
+                   oninput="this.value = formatInputNumber(this.value)" onblur="validateInput(this)">
+        </div>
+
+        <div class="input-container">
+            <label>Komplett verfehlte KPIs (10% Abzug je KPI):</label><br>
+            <input type="range" id="missedKPIs" min="0" max="10" step="1" value="0">
+            <span class="kpi-value" id="missedKPIsValue">0</span>
+        </div>
+
+        <div class="input-container">
+            <label>Geringfügig verfehlte KPIs (5% Abzug je KPI):</label><br>
+            <input type="range" id="partiallyMissedKPIs" min="0" max="10" step="1" value="0">
+            <span class="kpi-value" id="partiallyMissedKPIsValue">0</span>
+        </div>
+
+        <div class="results">
+            <div class="grid">
+                <span>Gewinn über Schwelle:</span>
+                <span class="text-right" id="profitAboveThreshold">1.000.000 NAD</span>
+                
+                <span>Initialbonus (50% vom Überschuss):</span>
+                <span class="text-right" id="initialBonus">384.000 NAD</span>
+                
+                <span>Direktauszahlung (50%):</span>
+                <span class="text-right bold" id="immediateBonus">192.000 NAD</span>
+                
+                <span>Verzögerte Auszahlung (nach KPIs):</span>
+                <span class="text-right bold" id="delayedBonus">192.000 NAD</span>
+                <span class="kpi-info">Reduzierung um <span id="kpiReductionPercent">0</span>%</span>
+                
+                <span class="bold">Gesamtbonus:</span>
+                <span class="text-right bold" id="totalBonus">384.000 NAD</span>
+                
+                <div class="divider" style="grid-column: span 2;"></div>
+                
+                <span class="bold">Ursprünglicher Gewinn:</span>
+                <span class="text-right bold" id="originalProfit">2.000.000 NAD</span>
+                
+                <span class="bold">Bonus-Auszahlung:</span>
+                <span class="text-right bold red" id="bonusDeduction">-384.000 NAD</span>
+                
+                <span class="bold">Verbleibender Farmgewinn:</span>
+                <span class="text-right bold green" id="remainingProfit">1.616.000 NAD</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const THRESHOLD = 1000000;
+        const MAX_BONUS = 384000; // 100% eines Jahresgehalts
+        const BONUS_PERCENTAGE = 0.5;
+
+        function formatInputNumber(value) {
+            // Entferne alle Nicht-Ziffern
+            let number = value.replace(/[^\d]/g, '');
+            // Füge Tausendertrennzeichen hinzu
+            return number.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        }
+
+        function formatNumber(num) {
+            return new Intl.NumberFormat('de-DE').format(num);
+        }
+
+        function validateInput(input) {
+            if (input.value === '') {
+                input.value = '0';
+            }
+            updateCalculations();
+        }
+
+        function parseGermanNumber(value) {
+            return parseInt(value.replace(/\./g, ''));
+        }
+
+        function updatePayoutYear() {
+            const bonusYear = parseInt(document.getElementById('bonusYear').value);
+            const payoutYear = bonusYear + 3;
+            document.getElementById('payoutYear').textContent = payoutYear;
+        }
+
+        function updateCalculations() {
+            const yearlyProfit = parseGermanNumber(document.getElementById('yearlyProfit').value);
+            const missedKPIs = parseFloat(document.getElementById('missedKPIs').value);
+            const partiallyMissedKPIs = parseFloat(document.getElementById('partiallyMissedKPIs').value);
+
+            // Berechnungen
+            const profitAboveThreshold = Math.max(0, yearlyProfit - THRESHOLD);
+            const initialBonus = Math.min(profitAboveThreshold * BONUS_PERCENTAGE, MAX_BONUS);
+            const immediateBonus = initialBonus * 0.5;
+            const kpiReduction = (missedKPIs * 0.10 + partiallyMissedKPIs * 0.05);
+            const delayedBonus = initialBonus * 0.5 * (1 - kpiReduction);
+            const totalBonus = immediateBonus + delayedBonus;
+
+            // Update display values
+            document.getElementById('missedKPIsValue').textContent = missedKPIs;
+            document.getElementById('partiallyMissedKPIsValue').textContent = partiallyMissedKPIs;
+            document.getElementById('kpiReductionPercent').textContent = (kpiReduction * 100).toFixed(0);
+            document.getElementById('profitAboveThreshold').textContent = `${formatNumber(profitAboveThreshold)} NAD`;
+            document.getElementById('initialBonus').textContent = `${formatNumber(initialBonus)} NAD`;
+            document.getElementById('immediateBonus').textContent = `${formatNumber(immediateBonus)} NAD`;
+            document.getElementById('delayedBonus').textContent = `${formatNumber(delayedBonus)} NAD`;
+            document.getElementById('totalBonus').textContent = `${formatNumber(totalBonus)} NAD`;
+            document.getElementById('originalProfit').textContent = `${formatNumber(yearlyProfit)} NAD`;
+            document.getElementById('bonusDeduction').textContent = `-${formatNumber(totalBonus)} NAD`;
+            document.getElementById('remainingProfit').textContent = `${formatNumber(yearlyProfit - totalBonus)} NAD`;
+        }
+
+        // Add event listeners
+        document.getElementById('yearlyProfit').addEventListener('input', updateCalculations);
+        document.getElementById('missedKPIs').addEventListener('input', updateCalculations);
+        document.getElementById('partiallyMissedKPIs').addEventListener('input', updateCalculations);
+        document.getElementById('bonusYear').addEventListener('input', updatePayoutYear);
+
+        // Trigger initial calculation when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            updateCalculations();
+            updatePayoutYear();
+        });
+
+        // Initial calculations
+        updateCalculations();
+        updatePayoutYear();
+    </script>
+</body>
+</html>
